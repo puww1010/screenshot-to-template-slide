@@ -15,7 +15,22 @@
 - **Claude 桌面版 / Cowork**：到 [Releases](https://github.com/puww1010/screenshot-to-template-slide/releases/latest) 下载 `screenshot-to-template-slide.skill`，在对话里打开后点 **Save skill**。
 - **Claude Code**：把仓库复制到 `~/.claude/skills/screenshot-to-template-slide/`。
 
-依赖：Python 3、`zip`、LibreOffice 与 `pdftoppm`（用于 QA 渲染）、`markitdown`；校验和渲染脚本复用官方 `pptx` skill（`scripts/office/validate.py`、`soffice.py`）。
+依赖：Python 3、`zip`；QA 渲染需要 LibreOffice 和 `pdftoppm`；`markitdown` 可选（没有时脚本自己提取页面文字）。Anthropic 官方 `pptx` skill 是**可选**的：装了就用它的 validate、soffice、clean，没装就走内置兜底流程。
+
+## 在其他 AI Agent 中使用
+本 skill 遵循 Agent Skills 的目录约定：一个文件夹，里面有带 `name`/`description` 头信息的 `SKILL.md`，再配上 `scripts/`、`references/` 和 `examples/`。
+
+| 环境 | 用法 |
+|---|---|
+| Claude 桌面版 / Cowork | 从 Releases 下载 `.skill`，点 **Save skill** |
+| Claude Code | 复制到 `~/.claude/skills/screenshot-to-template-slide/` |
+| 支持 Agent Skills 格式的其他 agent | 把整个文件夹放进该工具约定的 skills 目录（具体位置以对方文档为准） |
+| 不支持 skills 的 agent | 把 `SKILL.md` 正文当作系统提示词或项目说明（例如 `AGENTS.md`），并把 `scripts/` 放到它能执行的位置 |
+
+前提是 agent 要能**执行 shell 和 Python**，并且能**查看图片**（用来检查 QA 渲染图）。只能聊天的模型可以照着规则操作，但跑不了自动构建和检查。SKILL.md 里出现的 AskUserQuestion、`computer://` 等是 Claude 的工具名，在其他环境里请换成对应的能力，文中都已注明。
+
+## English summary
+Rebuild a slide **screenshot + speaker script** into an **editable, template-faithful PPTX slide** with native shapes (no images), theme colours and zero template modification. Ships `slidekit` (26 icons, 20+ illustration parts), a one-command build/QA pipeline (font unification, package validation, template diff, +6% stress render, text audit), a deck merger, speaker-notes injection and a Chinese mode. Works with any agent that can run shell + Python; Anthropic's `pptx` skill is optional.
 
 ## 快速开始
 ```bash

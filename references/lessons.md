@@ -23,7 +23,7 @@
 - **python -I**：-I 模式下不会把脚本所在目录加进 sys.path，导入同目录模块要自己 `sys.path.insert`。
 - **重复的 shape id**：每次构建前先把 `C.i` 重置，生成新页时不要复用旧 id。
 - **用户在 PowerPoint 里另存过**：文件体积会变化。改字体这类批量修改要直接在用户的副本上做，保留用户自己的改动。
-- **pptx skill 路径**：沙盒里在 `/sessions/*/mnt/.claude/skills/pptx`；直接调 `soffice` 会卡住，要用 `scripts/office/soffice.py`。
+- **pptx skill（可选）**：Claude 沙盒里在 `/sessions/*/mnt/.claude/skills/pptx`，在那里直接调 `soffice` 可能会卡住，要用它的 `scripts/office/soffice.py`。没有这个 skill 时，build_slide.py 会用独立的 LibreOffice profile 直接渲染（超时 240 秒），也可以用 `--pptx-skill none` 强制走内置流程。
 
 ## 视觉经验
 - 章节页插图直接画在条纹或渐变背景上会显得乱，放进白色阴影卡片里就专业很多。

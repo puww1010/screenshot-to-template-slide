@@ -20,7 +20,9 @@ import slidekit as sk  # noqa: E402
 
 
 def find_pptx_skill(explicit):
-    if explicit: return explicit
+    """Optional helper: Anthropic's official `pptx` skill (validate.py / soffice.py / clean.py).
+    Pass --pptx-skill none to force the built-in fallbacks."""
+    if explicit: return None if explicit.lower() == 'none' else explicit
     if os.environ.get('PPTX_SKILL'): return os.environ['PPTX_SKILL']
     for pat in ['/sessions/*/mnt/.claude/skills/pptx', os.path.expanduser('~/.claude/skills/pptx'),
                 os.path.join(HERE, '..', '..', 'pptx')]:
@@ -40,6 +42,87 @@ def keep_first_slide(u):
         x = x.replace(''.join(ids), ids[0]) if ''.join(ids) in x else re.sub(r'(<p:sldIdLst>).*?(</p:sldIdLst>)', lambda m: m.group(1) + ids[0] + m.group(2), x, flags=re.S)
         write(pres, x); return True
     return False
+
+
+def prune_unlisted_slides(u):
+    """Built-in clean: delete slide parts (and their notes) that are no longer in <p:sldIdLst>."""
+    pres = read(os.path.join(u, 'ppt/presentation.xml')); prp = os.path.join(u, 'ppt/_rels/presentation.xml.rels'); prels = read(prp)
+    keep = set(re.findall(r'<p:sldId [^>]*r:id="([^"]+)"', pres)); ctp = os.path.join(u, '[Content_Types].xml'); ct = read(ctp)
+    for rel in re.findall(r'<Relationship [^>]*/>', prels):
+        if '/relationships/slide"' not in rel: continue
+        rid = re.search(r'Id="([^"]+)"', rel).group(1)
+        if rid in keep: continue
+        tgt = re.search(r'Target="([^"]+)"', rel).group(1); sp = os.path.normpath(os.path.join(u, 'ppt', tgt))
+        srel = os.path.join(os.path.dirname(sp), '_rels', os.path.basename(sp) + '.rels')
+        parts = [sp]
+        if os.path.exists(srel):
+            for n in re.findall(r'Target="\.\./notesSlides/(notesSlide\d+\.xml)"', read(srel)):
+                np_ = os.path.join(u, 'ppt/notesSlides', n); parts += [np_, os.path.join(u, 'ppt/notesSlides/_rels', n + '.rels')]
+            parts.append(srel)
+        for f in parts:
+            if os.path.exists(f):
+                os.remove(f); pn = '/' + os.path.relpath(f, u).replace(os.sep, '/')
+                ct = re.sub(r'<Override PartName="%s"[^>]*/>' % re.escape(pn), '', ct)
+        prels = prels.replace(rel, '')
+    write(prp, prels); write(ctp, ct)
+
+
+def basic_validate(path):
+    """Built-in package check used when the pptx skill is absent: XML well-formed, rels targets exist,
+    every part has a content type, shape ids unique per slide."""
+    import xml.dom.minidom as md
+    z = zipfile.ZipFile(path); names = set(z.namelist()); issues = []
+    ct = z.read('[Content_Types].xml').decode('utf8')
+    defaults = set(re.findall(r'<Default Extension="([^"]+)"', ct)); overrides = set(re.findall(r'<Override PartName="([^"]+)"', ct))
+    for n in names:
+        if n.endswith('/'): continue
+        if n.endswith('.xml') or n.endswith('.rels'):
+            try: md.parseString(z.read(n))
+            except Exception as e: issues.append(f'XML parse error in {n}: {e}')
+        if n != '[Content_Types].xml' and '/' + n not in overrides and n.rsplit('.', 1)[-1] not in defaults:
+            issues.append(f'no content type for {n}')
+        if n.endswith('.rels'):
+            base = os.path.dirname(os.path.dirname(n))
+            for rel in re.findall(r'<Relationship [^>]*/>', z.read(n).decode('utf8')):
+                if 'TargetMode="External"' in rel: continue
+                t = re.search(r'Target="([^"]+)"', rel).group(1)
+                full = t.lstrip('/') if t.startswith('/') else os.path.normpath(os.path.join(base, t)).replace(os.sep, '/')
+                if full not in names: issues.append(f'{n}: missing target {t}')
+        if re.match(r'ppt/slides/slide\d+\.xml$', n):
+            ids = re.findall(r'<p:cNvPr id="(\d+)"', z.read(n).decode('utf8'))
+            d = {i for i in ids if ids.count(i) > 1}
+            if d: issues.append(f'{n}: duplicate shape ids {sorted(d)}')
+    return issues
+
+
+def render_pdf(pptx, outdir, skill):
+    if skill:
+        subprocess.run([sys.executable, os.path.join(skill, 'scripts/office/soffice.py'), '--headless', '--convert-to', 'pdf', '--outdir', outdir, pptx], capture_output=True)
+    else:
+        exe = shutil.which('soffice') or shutil.which('libreoffice')
+        if not exe: print('[qa render] LibreOffice not found — skipped'); return None
+        prof = tempfile.mkdtemp(prefix='lo_')
+        try:
+            subprocess.run([exe, f'-env:UserInstallation=file://{prof}', '--headless', '--convert-to', 'pdf', '--outdir', outdir, pptx],
+                           capture_output=True, timeout=240)
+        except subprocess.TimeoutExpired:
+            print('[qa render] LibreOffice timed out — skipped'); return None
+    pdf = os.path.join(outdir, os.path.splitext(os.path.basename(pptx))[0] + '.pdf')
+    return pdf if os.path.exists(pdf) else None
+
+
+def slide_text(pptx):
+    r = subprocess.run([sys.executable, '-I', '-m', 'markitdown', pptx], capture_output=True, text=True)
+    if r.returncode == 0 and r.stdout.strip(): return [l for l in r.stdout.splitlines() if l.strip()]
+    x = zipfile.ZipFile(pptx).read(first_slide_path_zip(pptx)).decode('utf8')
+    return [''.join(re.findall(r'<a:t[^>]*>([^<]*)</a:t>', p)) for p in re.findall(r'<a:p>.*?</a:p>', x, re.S) if '<a:t' in p]
+
+
+def first_slide_path_zip(pptx):
+    z = zipfile.ZipFile(pptx); pres = z.read('ppt/presentation.xml').decode('utf8')
+    rid = re.search(r'<p:sldId [^>]*r:id="([^"]+)"', pres).group(1)
+    rel = re.search(r'<Relationship [^>]*Id="%s"[^>]*/>' % rid, z.read('ppt/_rels/presentation.xml.rels').decode('utf8')).group(0)
+    return 'ppt/' + re.search(r'Target="([^"]+)"', rel).group(1)
 
 
 def first_slide_path(u):
@@ -138,8 +221,9 @@ def main():
     work = tempfile.mkdtemp(prefix='sts_'); u = os.path.join(work, 'u')
     zipfile.ZipFile(a.template).extractall(u)
     skill = find_pptx_skill(a.pptx_skill)
-    if keep_first_slide(u) and skill:
-        subprocess.run([sys.executable, os.path.join(skill, 'scripts/clean.py'), u], check=False)
+    if keep_first_slide(u):
+        prune_unlisted_slides(u)
+        if skill: subprocess.run([sys.executable, os.path.join(skill, 'scripts/clean.py'), u], check=False, capture_output=True)
     slide = first_slide_path(u)
     if a.layout:
         lay = resolve_layout(u, a.layout); rp = slide.replace('slides/', 'slides/_rels/') + '.rels'
@@ -155,25 +239,28 @@ def main():
     unify_fonts(slide, font, ea_font=ea)
     zipdir(u, a.out)
     unify_fonts(slide.replace(u, q, 1), font, a.stress, ea_font=ea); stress = os.path.join(work, 'stress.pptx'); zipdir(q, stress)
-    print(f'[build] {a.out}  font={font}')
+    print(f'[build] {a.out}  font={font}  pptx-skill={"yes" if skill else "no (built-in fallbacks)"}')
     if skill:
         r = subprocess.run([sys.executable, os.path.join(skill, 'scripts/office/validate.py'), a.out, '--original', a.template], capture_output=True, text=True)
         print('[validate]', (r.stdout + r.stderr).strip().splitlines()[-1] if (r.stdout + r.stderr).strip() else r.returncode)
+    else:
+        iss = basic_validate(a.out)
+        print('[validate:basic]', 'PASSED' if not iss else 'ISSUES:\n  ' + '\n  '.join(iss))
     # template diff
     t, o = zipfile.ZipFile(a.template), zipfile.ZipFile(a.out)
     tn = set(t.namelist())
     changed = [n for n in o.namelist() if n not in tn or t.read(n) != o.read(n)]
     print('[diff vs template] changed parts:', changed)
-    if a.qa_dir and skill:
+    if a.qa_dir:
         os.makedirs(a.qa_dir, exist_ok=True); ensure_font_alias(font, ea)
-        subprocess.run([sys.executable, os.path.join(skill, 'scripts/office/soffice.py'), '--headless', '--convert-to', 'pdf', '--outdir', work, stress],
-                       capture_output=True)
-        pdf = os.path.join(work, 'stress.pdf'); base = os.path.join(a.qa_dir, os.path.splitext(os.path.basename(a.out))[0] + '_stress')
-        for f in glob.glob(base + '*.jpg'): os.remove(f)
-        subprocess.run(['pdftoppm', '-jpeg', '-r', '150', pdf, base])
-        print('[qa render]', sorted(glob.glob(base + '*.jpg')))
-    r = subprocess.run([sys.executable, '-I', '-m', 'markitdown', a.out], capture_output=True, text=True)
-    print('[text on slide]\n' + '\n'.join(l for l in r.stdout.splitlines() if l.strip()))
+        pdf = render_pdf(stress, work, skill)
+        if pdf and shutil.which('pdftoppm'):
+            base = os.path.join(a.qa_dir, os.path.splitext(os.path.basename(a.out))[0] + '_stress')
+            for f in glob.glob(base + '*.jpg'): os.remove(f)
+            subprocess.run(['pdftoppm', '-jpeg', '-r', '150', pdf, base])
+            print('[qa render]', sorted(glob.glob(base + '*.jpg')))
+        elif pdf: print('[qa render] PDF at', pdf, '(pdftoppm not found, open the PDF to inspect)')
+    print('[text on slide]\n' + '\n'.join(slide_text(a.out)))
 
 
 if __name__ == '__main__':
