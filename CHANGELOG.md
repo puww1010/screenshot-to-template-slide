@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.1.1 — 2026-10-24
 - README 新增"效果示例"一节，附 4 张示例图（docs/images/）。
 - 新增示例 `examples/stat_timeline.py`：大数字环形图、三步链路、THEN/NOW 时间线和结论横幅。
 - 新增虚构品牌 ACME 的演示模版 `examples/demo-template.pptx` 及其生成脚本 `make_demo_template.js`，没有自己的模版也能试跑。
