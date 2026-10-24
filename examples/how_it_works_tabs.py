@@ -22,8 +22,14 @@ def build():
     qx=.5+3*(cw+g)
     S.append(shape('Gate',qx,y,9.5-qx,h,'roundRect',fill=sf('accent4',GT),line=ln('accent4',1.25),av={'adj':8000}))
     S.append(text('Gate text',qx+.14,y+.1,9.5-qx-.24,h-.2,[para([run('QA gate',10,'accent4',b=True)]),
-        para([run('Acceptance testing',9.5,'dk1',b=True)],before=4),para([run('Must pass every scenario and edge case',8.5,'dk2')])]))
+        para([run('Acceptance testing',9.5,'dk1',b=True)],before=4),para([run('Must pass every scenario and edge case',8.5,'dk2')]),
+        para([run('Regression testing',9.5,'dk1',b=True)],before=5),para([run('Must not break existing workflows or integrations',8.5,'dk2')])]))
     S.append(shape('Banner',.5,3.6,9,.46,'roundRect',fill=sf('accent1',GT),line=ln('accent1',1),av={'adj':20000}))
     S.append(text('Banner text',.75,3.6,8.6,.46,[para([run('Released continuously in hours',10.5,'accent1',b=True),
         run('   No release window, no restarts, no manual steps',9.5,'dk1')])],anchor='ctr'))
+    S.append(shape('Impact box',.5,4.24,9,.78,'roundRect',fill=sf('lt2',SOFT),av={'adj':12000}))
+    S.append(shape('Check ring',.66,4.43,.4,.4,'ellipse',fill=sf('lt1'),line=ln('accent4',1.75)))
+    S.append(path('Check',.77,4.57,.18,.12,[('M',0,.5),('L',.38,1),('L',1,0)],line=ln('accent4',2,cap=True)))
+    S.append(text('Impact text',1.2,4.32,8.15,.62,[para([run('Operational impact: ',9.5,'accent4',b=True),
+        run('every change is tested automatically before it reaches customers, so speed never comes at the cost of stability, even at high volume.',9.5,'dk1')],lnpct=105000)],anchor='ctr'))
     return S

@@ -4,6 +4,17 @@
 
 这是一个 [Claude](https://claude.ai) Agent Skill。规则和工具来自一次真实的多轮协作：用二十多页 explainer 迭代出来，用户纠正过的每一处都写进了硬规则。
 
+## 效果示例
+下面几张都是本 skill 在虚构品牌 **ACME** 的演示模版（`examples/demo-template.pptx`）上生成的**可编辑 PPTX**，全部用原生形状绘制，配色取自模版的主题色。图中数据都是演示用的虚构数据。
+
+![大数字 + 时间线对比](docs/images/sample-stat-timeline.jpg)
+
+| How it works 标签页 | 插画型流程页 | 章节分隔页 |
+|---|---|---|
+| ![](docs/images/sample-how-it-works.jpg) | ![](docs/images/sample-illustrated-flow.jpg) | ![](docs/images/sample-section-divider.jpg) |
+
+对应的源码在 `examples/stat_timeline.py`、`how_it_works_tabs.py`、`illustrated_flow.py`、`section_divider.py`。换一个模版重新构建，配色和字体会自动跟着模版走。
+
 ## 特点
 - **规则先行**：原图文字逐字保留，讲稿不上页面（可以写进演讲者备注），版式结构照原图，模版保持原样，每页只出一个方向，同级元素样式统一。
 - **slidekit**：原生 OOXML 形状库，包括 26 种图标、20 多个插画部件，以及标签条、进度条、阴影卡片、荧光高亮等页面辅助函数。
@@ -33,6 +44,12 @@
 Rebuild a slide **screenshot + speaker script** into an **editable, template-faithful PPTX slide** with native shapes (no images), theme colours and zero template modification. Ships `slidekit` (26 icons, 20+ illustration parts), a one-command build/QA pipeline (font unification, package validation, template diff, +6% stress render, text audit), a deck merger, speaker-notes injection and a Chinese mode. Works with any agent that can run shell + Python; Anthropic's `pptx` skill is optional.
 
 ## 快速开始
+没有现成的模版也可以先用演示模版试跑：
+```bash
+python3 scripts/build_slide.py --template examples/demo-template.pptx --page examples/stat_timeline.py --out demo.pptx --qa-dir qa/
+python3 scripts/build_slide.py --template examples/demo-template.pptx --page examples/section_divider.py --out divider.pptx --layout "ACME Section Divider"
+```
+换成你自己的模版：
 ```bash
 python3 scripts/list_layouts.py MyTemplate.pptx --grep Section
 python3 scripts/build_slide.py --template MyTemplate.pptx --page examples/how_it_works_tabs.py \
@@ -48,7 +65,8 @@ scripts/slidekit.py           原生形状与图标库
 scripts/build_slide.py        单页构建与 QA
 scripts/merge_deck.py         合并整套 deck
 scripts/list_layouts.py       列出模版版式
-examples/                     章节分隔页 / How-it-works 标签页 / 插画流程页
+examples/                     4 个示例页 + 演示模版 demo-template.pptx（虚构品牌 ACME）
+docs/images/                  README 里的效果示例图
 references/                   页型结构、QA 清单、常用说法对照、模版预设示例
 ```
 

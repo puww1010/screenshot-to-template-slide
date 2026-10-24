@@ -104,7 +104,7 @@ python3 scripts/merge_deck.py --out <系列>_Full_Deck.pptx cover.pptx agenda.pp
 - `scripts/list_layouts.py`：列出模版里的版式和占位符位置。
 - `scripts/merge_deck.py`：把单页文件按顺序合并成整套 deck。
 - build_slide.py 的选项：`--notes`（讲稿写进备注）、`--lang zh` / `--ea-font`（中文页面）。
-- `examples/`：章节分隔页、How-it-works 标签页、插画流程页的示例 page.py。
+- `examples/`：4 个示例 page.py（大数字加时间线 stat_timeline、章节分隔页、How-it-works 标签页、插画流程页），另附虚构品牌的演示模版 `demo-template.pptx`，可以直接拿来试跑。
 - `references/page-patterns.md`：各种页型的结构和坐标。
 - `references/lessons.md`：QA 清单和踩过的坑。
 - `references/prompt-patterns.md`：用户常用说法对应的处理方式。
