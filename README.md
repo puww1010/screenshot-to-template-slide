@@ -12,7 +12,7 @@
 - **中文模式**：`--lang zh`，中文字体单独设置，术语保留英文。
 
 ## 安装
-- **Claude 桌面版 / Cowork**：把本仓库目录打包成 `screenshot-to-template-slide.skill`（zip，SKILL.md 放在 `screenshot-to-template-slide/` 目录下），在对话里打开后点 **Save skill**。
+- **Claude 桌面版 / Cowork**：到 [Releases](https://github.com/puww1010/screenshot-to-template-slide/releases/latest) 下载 `screenshot-to-template-slide.skill`，在对话里打开后点 **Save skill**。
 - **Claude Code**：把仓库复制到 `~/.claude/skills/screenshot-to-template-slide/`。
 
 依赖：Python 3、`zip`、LibreOffice 与 `pdftoppm`（用于 QA 渲染）、`markitdown`；校验和渲染脚本复用官方 `pptx` skill（`scripts/office/validate.py`、`soffice.py`）。
@@ -36,3 +36,6 @@ scripts/list_layouts.py       列出模版版式
 examples/                     章节分隔页 / How-it-works 标签页 / 插画流程页
 references/                   页型结构、QA 清单、常用说法对照、模版预设示例
 ```
+
+## License
+[MIT](LICENSE)
