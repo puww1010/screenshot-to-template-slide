@@ -30,7 +30,13 @@ def run(t,sz,color='dk1',b=False,i=False,spc=None):
     s=f' spc="{spc}"' if spc else ''
     return f'<a:r><a:rPr lang="en-US" sz="{int(sz*100)}" b="{int(b)}" i="{int(i)}"{s} dirty="0">{sf(color)}</a:rPr><a:t xml:space="preserve">{esc(t)}</a:t></a:r>'
 def para(runs,algn='l',lnpct=None,before=0):
-    lnx=f'<a:lnSpc><a:spcPct val="{lnpct}"/></a:lnSpc>' if lnpct else ''
+    """lnpct: line spacing in PERCENT (115 = 115 %). OOXML units (115000) are still accepted.
+    OOXML spcPct is in 1/1000 %, so a raw 120 would mean 0.12 % and PowerPoint stacks every line on top of each other."""
+    lnx=''
+    if lnpct:
+        v=int(round(lnpct*1000)) if lnpct<1000 else int(lnpct)
+        if not 50000<=v<=300000: raise ValueError(f'para: line spacing {lnpct!r} = {v/1000:g} % is outside 50-300 %')
+        lnx=f'<a:lnSpc><a:spcPct val="{v}"/></a:lnSpc>'
     bf=f'<a:spcBef><a:spcPts val="{int(before*100)}"/></a:spcBef>' if before else ''
     return f'<a:p><a:pPr algn="{algn}">{lnx}{bf}<a:buNone/></a:pPr>{"".join(runs)}</a:p>'
 def body(paras,anchor='t'):
