@@ -178,6 +178,66 @@ def unify_fonts(slide_path, font, scale=1.0, ea_font=None):
     write(slide_path, x)
 
 
+CJK = re.compile(r'[　-〿㐀-䶿一-鿿＀-￯]')
+RUN_RE = re.compile(r'(<a:r>\s*<a:rPr\b)([^>]*?)(/?>)((?:(?!</a:r>).)*?<a:t[^>]*>)([^<]*)(</a:t>)', re.S)
+
+
+def tag_cjk_lang(slide_path, lang='zh-CN'):
+    """--lang zh: tag every run whose text contains CJK with lang=zh-CN (slidekit writes en-US).
+    PowerPoint picks fallback fonts and line-breaking rules from this attribute."""
+    x = read(slide_path)
+    def fix(m):
+        if not CJK.search(m.group(5)): return m.group(0)
+        attrs = re.sub(r'\slang="[^"]*"', '', m.group(2))
+        return m.group(1) + f' lang="{lang}"' + attrs + ''.join(m.group(k) for k in range(3, 7))
+    write(slide_path, RUN_RE.sub(fix, x))
+
+
+def lint_slide(x, lang):
+    """Static checks for values PowerPoint takes literally but LibreOffice silently corrects,
+    so the QA render cannot catch them. Returns (fails, warns)."""
+    fails, warns = [], []
+    for v in re.findall(r'<a:lnSpc><a:spcPct val="(-?\d+)"', x):
+        if not 50000 <= int(v) <= 300000:
+            fails.append(f'line spacing spcPct val="{v}" = {int(v)/1000:g} % (expected 50-300 %, i.e. 50000-300000; '
+                         f'pass a percent such as lnpct=120 to slidekit.para)')
+    for v in re.findall(r'<a:lnSpc><a:spcPts val="(-?\d+)"', x):
+        if not 100 <= int(v) <= 100000: fails.append(f'line spacing spcPts val="{v}" = {int(v)/100:g} pt')
+    for tag, v in re.findall(r'<a:(spcBef|spcAft)><a:spcPts val="(-?\d+)"', x):
+        if not 0 <= int(v) <= 20000: fails.append(f'{tag} spcPts val="{v}" = {int(v)/100:g} pt (expected 0-200 pt)')
+    for v in re.findall(r'<a:(?:rPr|defRPr|endParaRPr)\b[^>]*\bsz="(-?\d+)"', x):
+        if not 100 <= int(v) <= 40000: fails.append(f'font size sz="{v}" = {int(v)/100:g} pt (expected 1-400 pt)')
+    if lang != 'zh':
+        n = sum(1 for m in RUN_RE.finditer(x) if CJK.search(m.group(5)) and 'lang="zh' not in m.group(2))
+        if n: warns.append(f'{n} run(s) contain CJK text but are not tagged zh-CN: build Chinese pages with --lang zh')
+    return sorted(set(fails)), warns
+
+
+def canvas_note(u):
+    tag = re.search(r'<p:sldSz\b[^>]*>', read(os.path.join(u, 'ppt/presentation.xml')))
+    cx = tag and re.search(r'\bcx="(\d+)"', tag.group(0)); cy = tag and re.search(r'\bcy="(\d+)"', tag.group(0))
+    if not (cx and cy): return
+    w, h = int(cx.group(1)) / 914400, int(cy.group(1)) / 914400
+    if abs(w - 10) > .01 or abs(h - 5.625) > .01:
+        print(f'[WARN] canvas {w:g} x {h:g} in: slidekit defaults and references/page-patterns.md assume 10 x 5.625 in; '
+              f'scale coordinates and font sizes by x{w/10:.1f}')
+
+
+CROSS_FONTS = {'Arial', 'Arial Black', 'Aptos', 'Calibri', 'Cambria', 'Candara', 'Consolas', 'Constantia', 'Corbel',
+               'Courier New', 'Georgia', 'Tahoma', 'Times New Roman', 'Trebuchet MS', 'Verdana'}
+MAC_FONTS = {'Helvetica', 'Helvetica Neue', 'PingFang SC', 'PingFang TC', 'Hiragino Sans GB', 'Songti SC', 'Heiti SC'}
+WIN_FONTS = {'Segoe UI', 'Microsoft YaHei', 'Microsoft JhengHei', 'SimSun', 'SimHei', 'DengXian', 'Yu Gothic'}
+
+
+def font_notes(*fonts):
+    for f in dict.fromkeys(x for x in fonts if x):
+        if f in CROSS_FONTS: continue
+        if f in MAC_FONTS: print(f'[NOTE] font "{f}" ships with macOS only; on Windows PowerPoint substitutes it')
+        elif f in WIN_FONTS: print(f'[NOTE] font "{f}" ships with Windows only; on macOS PowerPoint substitutes it')
+        else: print(f'[NOTE] font "{f}" is not a standard Windows/macOS font: install it on the presenting machine, '
+                    f'or embed fonts when saving in PowerPoint')
+
+
 def zipdir(d, out):
     if os.path.exists(out): os.remove(out)
     subprocess.check_call(['zip', '-qXDr', os.path.abspath(out), '.'], cwd=d)
@@ -232,6 +292,8 @@ def main():
     spec.loader.exec_module(page)
     sk.C.i = 10
     sk.inject(slide, page.build())
+    canvas_note(u)
+    if a.lang == 'zh': tag_cjk_lang(slide)
     font = detect_title_font(u, slide) if a.font == 'auto' else (None if a.font == 'none' else a.font)
     ea = a.ea_font or ('PingFang SC' if a.lang == 'zh' else None)
     if a.notes: set_notes(u, slide, read(a.notes))
@@ -240,6 +302,7 @@ def main():
     zipdir(u, a.out)
     unify_fonts(slide.replace(u, q, 1), font, a.stress, ea_font=ea); stress = os.path.join(work, 'stress.pptx'); zipdir(q, stress)
     print(f'[build] {a.out}  font={font}  pptx-skill={"yes" if skill else "no (built-in fallbacks)"}')
+    font_notes(font, ea)
     if skill:
         r = subprocess.run([sys.executable, os.path.join(skill, 'scripts/office/validate.py'), a.out, '--original', a.template], capture_output=True, text=True)
         print('[validate]', (r.stdout + r.stderr).strip().splitlines()[-1] if (r.stdout + r.stderr).strip() else r.returncode)
@@ -254,6 +317,11 @@ def main():
     slide_part = os.path.relpath(slide, u).replace(os.sep, '/')
     if slide_part not in changed:
         sys.exit(f'[FAIL] {slide_part} is identical to the template — page shapes were not injected')
+    fails, warns = lint_slide(read(slide), a.lang)
+    for w in warns: print('[WARN]', w)
+    if fails:
+        sys.exit('[FAIL] lint: PowerPoint would render these literally (LibreOffice hides them):\n  ' + '\n  '.join(fails))
+    print('[lint] OK')
     if a.qa_dir:
         os.makedirs(a.qa_dir, exist_ok=True); ensure_font_alias(font, ea)
         pdf = render_pdf(stress, work, skill)
