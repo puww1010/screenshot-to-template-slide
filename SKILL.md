@@ -1,11 +1,20 @@
 ---
 name: screenshot-to-template-slide
-description: 把"原图截图 + 讲稿（描述）+ 可选参考 slide"在用户指定的 PPTX 模版上重建成一页可编辑、图文并茂的幻灯片（原生形状图标、模版配色、不改模版）。当用户发来幻灯片截图并要求"做成可编辑 pptx / 以某模版为模版 / 不要改动模版格式 logo 颜色 / 参考这个 slide / 用 slide-maker 或 ppt-master 做"时使用；也适用于逐页制作一整套 explainer、培训或售前 deck。
+description: 把"原图截图 + 讲稿（描述）+ 可选参考 slide"在用户指定的 PPTX 模版上重建成一页可编辑、图文并茂的幻灯片（原生形状图标、模版配色、不改模版）。前提是同时有原图截图和用户自己的 .pptx 模版。当用户发来幻灯片截图并要求"以某模版为模版 / 套用这个模版 / 不要改动模版格式 logo 颜色 / 参考这个 slide / 用 slide-maker 或 ppt-master 做"时使用；也适用于按这种方式逐页截图重建整套 explainer、培训或售前 deck。没有指定模版、只想把截图或扫描件转成可编辑 PPT 的，用 image-to-editable-ppt；没有原图截图、从零写新 deck 的，不用本 skill。
+metadata:
+  version: "1.2.1"
 ---
 
 # Screenshot → Template Slide
 
 逐页把截图重建成**基于用户模版的可编辑 PPTX**。整个流程是从一次真实的多轮协作里总结出来的，用户每次纠正过的地方都已经写成了下面的硬规则。
+
+**红线（任何一条都不能碰，细则见 §2）**
+1. 讲稿和参考 slide 的文字不上页面；原图文字一个字都不能漏、不能改（§2.1）。
+2. 不改模版里的任何文件，只改本页 slide（§2.3）。
+3. 不改原图结构：分区、顺序、相对位置照原图（§2.2）。
+4. 不贴图片：图标和插图都用原生形状画（§2.4）。
+5. 同级元素的字号、字重、颜色必须统一（§2.4）。
 
 ## 0. 四种输入，以及它们各自的用途
 
@@ -29,6 +38,8 @@ description: 把"原图截图 + 讲稿（描述）+ 可选参考 slide"在用户
 3. **页面语言**：默认跟原图一致，通常是英文。选中文时，按 §2.5 的中文模式来做。
    同时问一句：**要不要把讲稿写进演讲者备注**（推荐写）。讲稿依然不上页面，只进 speaker notes。
 4. **字体**：默认 `auto`，即统一用模版标题字体（由 build_slide.py 自动检测）。
+
+如果之前已经给这个模版写过预设（格式见 `references/template-preset-example.md`），先读它，里面已经有配色、版式和系列惯例，可以少问几项。
 
 文件命名用 `<系列前缀>_<主题>.pptx`，例如 `ACME_Product_Overview.pptx`。只有在缺讲稿、或者截图和讲稿明显对不上时，才停下来问。
 
@@ -64,15 +75,17 @@ description: 把"原图截图 + 讲稿（描述）+ 可选参考 slide"在用户
 
 ## 3. 每一页的工作流（每一步都有验证点）
 
-1. **抄文字清单**：把原图上的文字逐条列出来，作为最后核对的基准。
+1. **抄文字清单**：把原图上的文字逐条列出来，作为最后核对的基准。格式参考 `examples/illustrated_flow_io.md`。
 2. **定页型和版式**：在 `references/page-patterns.md` 里找最接近的页型；用 `python3 scripts/list_layouts.py T.pptx --grep Section` 查版式名称。
 3. **写 page.py**：`from slidekit import *`，定义 `build()` 返回形状列表，可以参考 `examples/` 里的写法。坐标单位是英寸，画布 10×5.625，内容区大约 y 0.95–5.2（页脚从 5.33 开始）。
 4. **构建和 QA**：
    ```bash
    python3 scripts/build_slide.py --template T.pptx --page page.py --out OUT.pptx \
-       [--layout "Section Divider"] --qa-dir QA/
+       [--layout "Section Divider"] --qa-dir <输出目录>/QA
    ```
+   `--qa-dir` 要用绝对路径，并且放在你查看图片的工具能读到的目录里，例如 Cowork 的 outputs 目录或已挂载的文件夹。有些环境里，看图工具读不到 `/tmp` 或 shell 当前目录下的文件。
    脚本会自动完成：只保留第一页 → 注入形状 → 统一字体 → 用 validate.py 校验（--original 模版）→ 和模版逐文件比对 → 把字号放大 6% 做压力渲染 → 打印页面上的全部文字。
+   出现 `[FAIL]` 说明形状没注入成功，要先排查；`[qa render]` 显示 skipped 说明渲染被跳过了，要补上 LibreOffice，或者手动检查版面。
 5. **看压力渲染图**（用能查看图片的工具打开 jpg），按 `references/lessons.md` 的清单检查：文字溢出、重叠、折行、贴边、图层遮挡、留白不均。改完重跑，直到没有问题。
 6. **核对文字**：脚本打印出的页面文字要和第 1 步的清单一一对上，不能少，也不能多出讲稿里的句子。
    如果要写演讲者备注，把讲稿原文存成 txt，构建时加 `--notes script.txt`。模版页没有备注页时，脚本会提示跳过。
@@ -87,6 +100,7 @@ python3 scripts/merge_deck.py --out <系列>_Full_Deck.pptx cover.pptx agenda.pp
 - 合并后跑一遍 validate.py，再渲染缩略图检查顺序。同一页如果有多个版本（比如 _v2、Option A/B），先问用户用哪一个。
 
 ## 4. 用户反馈怎么处理
+- 用户的说法拿不准是什么意思时，先查 `references/prompt-patterns.md`，那里列了常见说法对应的规则章节。
 - 用户每纠正一次，就更新本系列的规则，并写进 memory（项目记忆）。再遇到同类页面时，直接按新规则做。
 - 修改已交付的页面时，先确认文件有没有被用户在 PowerPoint 里重新保存过（文件大小或 md5 有变化）。如果有，就直接在用户那份副本上改，保留用户自己的改动。
 - 改动要像外科手术一样精准：用户只说了改哪里，就只改哪里。比如"右上角字体统一"只改那一处，不顺手动其他地方。
@@ -104,8 +118,10 @@ python3 scripts/merge_deck.py --out <系列>_Full_Deck.pptx cover.pptx agenda.pp
 - `scripts/list_layouts.py`：列出模版里的版式和占位符位置。
 - `scripts/merge_deck.py`：把单页文件按顺序合并成整套 deck。
 - build_slide.py 的选项：`--notes`（讲稿写进备注）、`--lang zh` / `--ea-font`（中文页面）。
-- `examples/`：4 个示例 page.py（大数字加时间线 stat_timeline、章节分隔页、How-it-works 标签页、插画流程页），另附虚构品牌的演示模版 `demo-template.pptx`，可以直接拿来试跑。
-- `references/page-patterns.md`：各种页型的结构和坐标。
-- `references/lessons.md`：QA 清单和踩过的坑。
-- `references/prompt-patterns.md`：用户常用说法对应的处理方式。
-- `references/template-preset-example.md`：怎样给一个新模版写预设（配色、版式编号、系列惯例），附填写模板。
+- `examples/`：4 个示例 page.py（大数字加时间线 stat_timeline、章节分隔页、How-it-works 标签页、插画流程页），另附虚构品牌的演示模版 `demo-template.pptx`，可以直接拿来试跑。写 page.py 时（§3 第 3 步）参考。
+- `examples/illustrated_flow_io.md`：一组完整的"输入 → 输出"对照，包括原图文字清单、讲稿、page.py 和页面文字核对。第一次用本 skill，或拿不准哪些字能上页面时读。
+- `references/page-patterns.md`：各种页型的结构和坐标。§3 第 2 步定页型时读。
+- `references/lessons.md`：QA 清单和踩过的坑。§3 第 5 步看渲染图时读。
+- `references/prompt-patterns.md`：用户常用说法 → 对应规则章节。听不懂用户的说法时读（§4）。
+- `references/template-preset-example.md`：怎样给一个新模版写预设（配色、版式编号、系列惯例），附填写模板。要给新模版写预设，或已有预设要读时用（§1）。
+- `references/testing.md`：冒烟测试和触发测试。修改了 `scripts/` 或 `examples/` 之后、发布新版之前读，并跑一遍。

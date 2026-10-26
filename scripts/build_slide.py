@@ -251,6 +251,9 @@ def main():
     tn = set(t.namelist())
     changed = [n for n in o.namelist() if n not in tn or t.read(n) != o.read(n)]
     print('[diff vs template] changed parts:', changed)
+    slide_part = os.path.relpath(slide, u).replace(os.sep, '/')
+    if slide_part not in changed:
+        sys.exit(f'[FAIL] {slide_part} is identical to the template — page shapes were not injected')
     if a.qa_dir:
         os.makedirs(a.qa_dir, exist_ok=True); ensure_font_alias(font, ea)
         pdf = render_pdf(stress, work, skill)
