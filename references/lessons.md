@@ -25,6 +25,14 @@
 - **用户在 PowerPoint 里另存过**：文件体积会变化。改字体这类批量修改要直接在用户的副本上做，保留用户自己的改动。
 - **pptx skill（可选）**：Claude 沙盒里在 `/sessions/*/mnt/.claude/skills/pptx`，在那里直接调 `soffice` 可能会卡住，要用它的 `scripts/office/soffice.py`。没有这个 skill 时，build_slide.py 会用独立的 LibreOffice profile 直接渲染（超时 240 秒），也可以用 `--pptx-skill none` 强制走内置流程。
 
+## LibreOffice 和 PowerPoint 的差异
+QA 渲染用的是 LibreOffice，下面这些地方它和 PowerPoint 不一样，渲染图看着没问题不代表 PowerPoint 里没问题：
+- **行距、段距、字号的异常值**：LibreOffice 会自动纠正，PowerPoint 照原值排版。真实案例：行距写成 `spcPct val="120"`（应为 120000），PowerPoint 里整段文字叠成一行，看起来像重影。现在 build_slide.py 的 lint 会拦截这类问题，slidekit.para 的 lnpct 也改成按百分比传参。
+- **中文断行**：两边的避头尾规则不同，同一段话的折行位置可能不一样。并列卡片里最好用 `<a:br>` 手动断行，不要依赖自动折行刚好落在好位置。
+- **字体替换**：沙盒里没有模版字体时，压力渲染会用 Liberation Sans、Noto Sans CJK SC 来近似，宽度只是接近。苹方只有 macOS 有，Windows 上会被替换；Figtree 这类网络字体，放映的电脑不一定装了（脚本会给 `[NOTE] font`）。
+- **预设图形**：cloud 等形状的描边在 LibreOffice 里可能出现缺口，PowerPoint 里是正常的；需要描边时优先用阴影代替。
+- **文本框自动缩放（autofit）**：slidekit 默认 noAutofit，不要依赖 PowerPoint 的自动缩字。
+
 ## 视觉经验
 - 章节页插图直接画在条纹或渐变背景上会显得乱，放进白色阴影卡片里就专业很多。
 - 人物用实心剪影，不用火柴人。
