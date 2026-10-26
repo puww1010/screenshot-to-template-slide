@@ -461,5 +461,6 @@ def stage_card(x=1.5,y=.5,w=7.0,h=1.55,fill='lt1'):
 def inject(slide_xml_path, shapes):
     """Replace everything inside spTree (after grpSpPr) of a slide with `shapes`."""
     x=open(slide_xml_path,encoding='utf-8').read()
-    x=re.sub(r'(</p:grpSpPr>).*(</p:spTree>)',lambda m:m.group(1)+''.join(shapes)+m.group(2),x,count=1,flags=re.S)
+    x,n=re.subn(r'(</p:grpSpPr>|<p:grpSpPr/>).*(</p:spTree>)',lambda m:m.group(1)+''.join(shapes)+m.group(2),x,count=1,flags=re.S)
+    if n==0: raise RuntimeError(f'inject: no <p:grpSpPr>…</p:spTree> found in {slide_xml_path}; shapes NOT injected')
     open(slide_xml_path,'w',encoding='utf-8').write(x)
