@@ -2,7 +2,7 @@
 name: screenshot-to-template-slide
 description: 把"原图截图 + 讲稿（描述）+ 可选参考 slide"在用户指定的 PPTX 模版上重建成一页可编辑、图文并茂的幻灯片（原生形状图标、模版配色、不改模版）。前提是同时有原图截图和用户自己的 .pptx 模版。当用户发来幻灯片截图并要求"以某模版为模版 / 套用这个模版 / 不要改动模版格式 logo 颜色 / 参考这个 slide / 用 slide-maker 或 ppt-master 做"时使用；也适用于按这种方式逐页截图重建整套 explainer、培训或售前 deck。没有指定模版、只想把截图或扫描件转成可编辑 PPT 的，用 image-to-editable-ppt；没有原图截图、从零写新 deck 的，不用本 skill。
 metadata:
-  version: "1.2.1"
+  version: "1.2.2"
 ---
 
 # Screenshot → Template Slide
@@ -70,6 +70,7 @@ metadata:
 ### 2.5 中文页面模式（`--lang zh`）
 - 结构和元素照原图不变，原图文字**忠实翻译**成中文：不增不减，产品名、技术术语、数字、单位保留英文，比如产品名、API、CVE、SDK、24h。
 - 字体：西文继续用模版标题字体，中文另设 ea 字体，默认 `PingFang SC`。如果用户主要在 Windows 上放映，改用 `--ea-font "Microsoft YaHei"`。
+- `--lang zh` 会自动把含中文的文字标成 `zh-CN`。slidekit 默认写 `en-US`，PowerPoint 会按这个标记选回退字体和断行规则，标错可能导致中文断行或字体异常。没加 `--lang zh` 却有中文时，脚本会给出 `[WARN]`。
 - 中文每个字更宽、行高更高：并列卡片里的中文尽量控制在两行以内；标题字号比英文版小 1–2pt；压力渲染时会把中文字体映射到 Noto Sans CJK SC，用它检查溢出。
 - 不要逐字照搬英文的断行，要按中文语义重新分句。
 
@@ -77,7 +78,7 @@ metadata:
 
 1. **抄文字清单**：把原图上的文字逐条列出来，作为最后核对的基准。格式参考 `examples/illustrated_flow_io.md`。
 2. **定页型和版式**：在 `references/page-patterns.md` 里找最接近的页型；用 `python3 scripts/list_layouts.py T.pptx --grep Section` 查版式名称。
-3. **写 page.py**：`from slidekit import *`，定义 `build()` 返回形状列表，可以参考 `examples/` 里的写法。坐标单位是英寸，画布 10×5.625，内容区大约 y 0.95–5.2（页脚从 5.33 开始）。
+3. **写 page.py**：`from slidekit import *`，定义 `build()` 返回形状列表，可以参考 `examples/` 里的写法。坐标单位是英寸，画布 10×5.625，内容区大约 y 0.95–5.2（页脚从 5.33 开始）。模版画布是别的尺寸时（例如 20×11.25），构建时会出现 `[WARN] canvas … scale … x2.0`，坐标和字号都要按这个倍数放大；slidekit 函数的默认位置和尺寸也是按 10 英寸画布定的，要显式传参。行距用 `para(..., lnpct=120)` 这种百分比写法。
 4. **构建和 QA**：
    ```bash
    python3 scripts/build_slide.py --template T.pptx --page page.py --out OUT.pptx \
@@ -85,8 +86,9 @@ metadata:
    ```
    `--qa-dir` 要用绝对路径，并且放在你查看图片的工具能读到的目录里，例如 Cowork 的 outputs 目录或已挂载的文件夹。有些环境里，看图工具读不到 `/tmp` 或 shell 当前目录下的文件。
    脚本会自动完成：只保留第一页 → 注入形状 → 统一字体 → 用 validate.py 校验（--original 模版）→ 和模版逐文件比对 → 把字号放大 6% 做压力渲染 → 打印页面上的全部文字。
-   出现 `[FAIL]` 说明形状没注入成功，要先排查；`[qa render]` 显示 skipped 说明渲染被跳过了，要补上 LibreOffice，或者手动检查版面。
-5. **看压力渲染图**（用能查看图片的工具打开 jpg），按 `references/lessons.md` 的清单检查：文字溢出、重叠、折行、贴边、图层遮挡、留白不均。改完重跑，直到没有问题。
+   脚本还会做一遍 XML 检查（lint）：行距、段距、字号超出合理范围时报 `[FAIL] lint` 并退出。这类数值 LibreOffice 会悄悄纠正，渲染图上看不出来，但 PowerPoint 会照原值排版（比如把行距写成 120 而不是 120000，所有行会叠在一起）。
+   出现 `[FAIL]` 要先排查：要么是形状没注入成功，要么是 lint 没通过。`[qa render]` 显示 skipped 说明渲染被跳过了，要补上 LibreOffice，或者手动检查版面。`[NOTE] font …` 说明用到的字体不是 Windows 和 macOS 都自带的，交付时要提醒用户。
+5. **看压力渲染图**（用能查看图片的工具打开 jpg），按 `references/lessons.md` 的清单检查：文字溢出、重叠、折行、贴边、图层遮挡、留白不均。改完重跑，直到没有问题。注意渲染图来自 LibreOffice，和 PowerPoint 并不完全一致（见 lessons.md 的"LibreOffice 和 PowerPoint 的差异"），交付时请用户在 PowerPoint 里再过一遍。
 6. **核对文字**：脚本打印出的页面文字要和第 1 步的清单一一对上，不能少，也不能多出讲稿里的句子。
    如果要写演讲者备注，把讲稿原文存成 txt，构建时加 `--notes script.txt`。模版页没有备注页时，脚本会提示跳过。
 7. **交付**：复制到输出文件夹，然后按 §5 的格式简要汇报。
@@ -109,7 +111,7 @@ python3 scripts/merge_deck.py --out <系列>_Full_Deck.pptx cover.pptx agenda.pp
 用中文写，几句话或一个短列表就够：
 - **页面上有什么**：按结构列一下，说明插图画的是什么。
 - **需要用户确认的点**：哪些字是从讲稿补的、原图疑似笔误、缺失的超链接 URL、为了贴合原图在本页做的覆盖，以及模版里另有版式可以选。
-- 一句话说明校验通过、模版没动。
+- 一句话说明校验和 lint 都通过、模版没动；如果出现过 `[NOTE] font`，提醒用户在放映的电脑上安装字体或嵌入字体。
 - 最后放上能直接点开的文件链接（例如 Cowork 的 `computer://`），如果环境不支持，就写出文件的绝对路径。
 
 ## 6. 文件索引
@@ -124,4 +126,5 @@ python3 scripts/merge_deck.py --out <系列>_Full_Deck.pptx cover.pptx agenda.pp
 - `references/lessons.md`：QA 清单和踩过的坑。§3 第 5 步看渲染图时读。
 - `references/prompt-patterns.md`：用户常用说法 → 对应规则章节。听不懂用户的说法时读（§4）。
 - `references/template-preset-example.md`：怎样给一个新模版写预设（配色、版式编号、系列惯例），附填写模板。要给新模版写预设，或已有预设要读时用（§1）。
-- `references/testing.md`：冒烟测试和触发测试。修改了 `scripts/` 或 `examples/` 之后、发布新版之前读，并跑一遍。
+- `references/testing.md`：冒烟测试、回归测试和触发测试。修改了 `scripts/` 或 `examples/` 之后、发布新版之前读，并跑一遍。
+- `tests/test_regressions.py`：回归测试，每个踩过的坑一项（`python3 tests/test_regressions.py`）。
