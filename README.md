@@ -65,9 +65,9 @@ scripts/slidekit.py           原生形状与图标库
 scripts/build_slide.py        单页构建与 QA
 scripts/merge_deck.py         合并整套 deck
 scripts/list_layouts.py       列出模版版式
-examples/                     4 个示例页 + 演示模版 demo-template.pptx（虚构品牌 ACME）
+examples/                     4 个示例页 + 演示模版 demo-template.pptx（虚构品牌 ACME）+ 输入输出对照 illustrated_flow_io.md
 docs/images/                  README 里的效果示例图
-references/                   页型结构、QA 清单、常用说法对照、模版预设示例
+references/                   页型结构、QA 清单、常用说法对照、模版预设示例、测试清单 testing.md
 ```
 
 ## License
