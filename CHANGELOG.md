@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.2.2 — 2026-10-26
+在 PowerPoint 里发现一个 LibreOffice 渲染图上看不出的问题（一个中文 deck 的两页文字叠成一行，像重影），顺着它补齐了渲染差异相关的检查。
+- **修复**：`slidekit.para(lnpct=…)` 原来把数值原样写进 `<a:spcPct val>`，但这个单位是千分之一个百分点，传 120 就成了 0.12% 行距，PowerPoint 会把所有行叠在一起。现在按百分比传参（120 = 120%），原来的写法（120000）照样可用，超出 50–300% 直接报错。
+- **新增 lint**：`build_slide.py` 在交付前检查行距、段距、字号，超出合理范围时报 `[FAIL] lint` 并以非零码退出。这些数值 LibreOffice 会悄悄纠正，PowerPoint 照原值排版。
+- **中文标注**：`--lang zh` 自动把含中文的文字标成 `zh-CN`，原来一律是 `en-US`，PowerPoint 会按这个标记选回退字体和断行规则。没加 `--lang zh` 却有中文时给出 `[WARN]`。
+- **画布尺寸提示**：模版不是 10×5.625 英寸时给出 `[WARN] canvas … x2.0`，提醒坐标和字号要按倍数放大。
+- **字体提示**：用到的字体不是 Windows 和 macOS 都自带的（例如 Figtree，或只有 macOS 有的苹方），给出 `[NOTE] font`，提醒在放映的电脑上安装字体或嵌入字体。
+- **新增** `tests/test_regressions.py`，16 项检查覆盖以上全部改动（其中画布尺寸一项同时覆盖 `cy` 写在 `cx` 前面的模版，PANW 2026 模版就是这种写法）；`references/lessons.md` 新增"LibreOffice 和 PowerPoint 的差异"；SKILL.md、testing.md、page-patterns.md 同步更新。
+
 ## v1.2.1 — 2026-10-26
 按"7 步构建 Skill"的标准做了一次体检，修了一个静默失败的 bug，并补齐了测试和样例。
 - **修复**：`slidekit.inject()` 原来只认 `</p:grpSpPr>`。模版页写成自闭合的 `<p:grpSpPr/>` 时（python-pptx 生成的模版就是这样），形状一个都不会注入，校验却照样显示 PASSED。现在两种写法都支持，都匹配不到时直接报错。

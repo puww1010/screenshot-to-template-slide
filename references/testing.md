@@ -1,4 +1,4 @@
-# 测试：改了 skill 之后先跑这两项
+# 测试：改了 skill 之后先跑这几项
 
 ## 1. 冒烟测试（脚本）
 
@@ -34,7 +34,14 @@ done
 
 只想测内置兜底流程时，在命令后面加 `--pptx-skill none`。
 
-## 2. 触发测试（description）
+## 2. 回归测试（脚本）
+
+```bash
+python3 tests/test_regressions.py
+```
+覆盖已经踩过的坑：行距单位（lnpct=120 → 120000）、lint 拦截 PowerPoint 会照原值排版的异常值、`--lang zh` 给中文文字标 zh-CN、非 10 英寸画布的提示、非系统字体的提示。需要 python-pptx，用来临时生成模版。最后一行显示 `all passed` 才算通过。修 bug 时先在这里加一个能复现问题的测试，再改代码。
+
+## 3. 触发测试（description）
 
 修改 description 之后，在一个装了本 skill 的新对话里逐条发下面几句话，看触发的是哪个 skill：
 
