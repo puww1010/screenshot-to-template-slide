@@ -178,7 +178,7 @@ def unify_fonts(slide_path, font, scale=1.0, ea_font=None):
     write(slide_path, x)
 
 
-CJK = re.compile(r'[　-〿㐀-䶿一-鿿＀-￯]')
+CJK = re.compile('[%s]' % ''.join('%s-%s' % (chr(a), chr(b)) for a, b in ((0x3000, 0x303f), (0x3400, 0x4dbf), (0x4e00, 0x9fff), (0xff00, 0xffef))))
 RUN_RE = re.compile(r'(<a:r>\s*<a:rPr\b)([^>]*?)(/?>)((?:(?!</a:r>).)*?<a:t[^>]*>)([^<]*)(</a:t>)', re.S)
 
 
