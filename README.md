@@ -47,13 +47,12 @@ Rebuild a slide **screenshot + speaker script** into an **editable, template-fai
 没有现成的模版也可以先用演示模版试跑：
 ```bash
 python3 scripts/build_slide.py --template examples/demo-template.pptx --page examples/stat_timeline.py --out demo.pptx --qa-dir qa/
-python3 scripts/build_slide.py --template examples/demo-template.pptx --page examples/section_divider.py --out divider.pptx --layout "ACME Section Divider"
 ```
 换成你自己的模版：
 ```bash
-python3 scripts/list_layouts.py MyTemplate.pptx --grep Section
+python3 scripts/list_layouts.py MyTemplate.pptx
 python3 scripts/build_slide.py --template MyTemplate.pptx --page examples/how_it_works_tabs.py \
-        --out out.pptx --qa-dir qa/ [--layout "Section Divider"] [--notes script.txt] [--lang zh]
+        --out out.pptx --qa-dir qa/ [--layout "<版式名>"] [--notes script.txt] [--lang zh]
 python3 scripts/merge_deck.py --out deck.pptx cover.pptx agenda.pptx ch1.pptx ...
 ```
 `page.py` 只需定义 `build()`，返回 slidekit 形状列表，写法参考 `examples/`。
