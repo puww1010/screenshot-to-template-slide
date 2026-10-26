@@ -9,11 +9,11 @@
 
 ![大数字 + 时间线对比](docs/images/sample-stat-timeline.jpg)
 
-| How it works 标签页 | 插画型流程页 | 章节分隔页 |
-|---|---|---|
-| ![](docs/images/sample-how-it-works.jpg) | ![](docs/images/sample-illustrated-flow.jpg) | ![](docs/images/sample-section-divider.jpg) |
+| How it works 标签页 | 插画型流程页 |
+|---|---|
+| ![](docs/images/sample-how-it-works.jpg) | ![](docs/images/sample-illustrated-flow.jpg) |
 
-对应的源码在 `examples/stat_timeline.py`、`how_it_works_tabs.py`、`illustrated_flow.py`、`section_divider.py`。换一个模版重新构建，配色和字体会自动跟着模版走。
+对应的源码在 `examples/stat_timeline.py`、`how_it_works_tabs.py`、`illustrated_flow.py`。换一个模版重新构建，配色和字体会自动跟着模版走。
 
 ## 特点
 - **规则先行**：原图文字逐字保留，讲稿不上页面（可以写进演讲者备注），版式结构照原图，模版保持原样，每页只出一个方向，同级元素样式统一。
