@@ -2,7 +2,7 @@
 name: screenshot-to-template-slide
 description: 把"原图截图 + 讲稿（描述）+ 可选参考 slide"在用户指定的 PPTX 模版上重建成一页可编辑、图文并茂的幻灯片（原生形状图标、模版配色、不改模版）。前提是同时有原图截图和用户自己的 .pptx 模版。当用户发来幻灯片截图并要求"以某模版为模版 / 套用这个模版 / 不要改动模版格式 logo 颜色 / 参考这个 slide / 用 slide-maker 或 ppt-master 做"时使用；也适用于按这种方式逐页截图重建整套 explainer、培训或售前 deck。没有指定模版、只想把截图或扫描件转成可编辑 PPT 的，用 image-to-editable-ppt；没有原图截图、从零写新 deck 的，不用本 skill。
 metadata:
-  version: "1.2.2"
+  version: "1.2.3"
 ---
 
 # Screenshot → Template Slide
@@ -63,9 +63,9 @@ metadata:
 
 ### 2.4 设计
 - **每页只出一个方向**，用户反馈后再改。
-- **图文并茂**：每一页都要有原生形状画的图标或插图，用 slidekit 画，不贴图片，保证可编辑。插图类原图要按原图里的元素重新画，同样不能照搬。
+- **图文并茂**：除章节分隔页外，每一页都要有原生形状画的图标或插图，用 slidekit 画，不贴图片，保证可编辑。插图类原图要按原图里的元素重新画，同样不能照搬。
 - **同级元素样式必须统一**：并列条目的字号、字重、颜色完全一致。用户曾指出"两条议题一条加粗、一条不加粗"，为了让一条不折行，宁可整组一起缩小。
-- **章节分隔页**（原图带大号数字 1-5）：用模版自带的 Section Divider 版式，插图放在白色阴影卡片上，下面是标题（继承版式样式）、副标题和 5 格进度条加 "0N / 05"。整套用同一种格式，具体样式见 references/page-patterns.md。
+- **章节分隔页**（原图带大号数字 1-5，或原图就是一页章节标题）：用模版自带的 Section Divider 版式，**只用文字**：标题（继承版式样式）、副标题，再加一条进度条和 "0N / 0M"。不画插图，不放白色插图卡片，原图里有插画也不画，背景交给模版。用户曾指出章节页的插图卡片"非常难看"。只有用户明确要求时才加插图。整套用同一种格式，具体样式见 references/page-patterns.md。构建时如果章节版式上出现了插图类形状，脚本会给出 `[WARN] section divider`。
 
 ### 2.5 中文页面模式（`--lang zh`）
 - 结构和元素照原图不变，原图文字**忠实翻译**成中文：不增不减，产品名、技术术语、数字、单位保留英文，比如产品名、API、CVE、SDK、24h。
@@ -120,7 +120,7 @@ python3 scripts/merge_deck.py --out <系列>_Full_Deck.pptx cover.pptx agenda.pp
 - `scripts/list_layouts.py`：列出模版里的版式和占位符位置。
 - `scripts/merge_deck.py`：把单页文件按顺序合并成整套 deck。
 - build_slide.py 的选项：`--notes`（讲稿写进备注）、`--lang zh` / `--ea-font`（中文页面）。
-- `examples/`：4 个示例 page.py（大数字加时间线 stat_timeline、章节分隔页、How-it-works 标签页、插画流程页），另附虚构品牌的演示模版 `demo-template.pptx`，可以直接拿来试跑。写 page.py 时（§3 第 3 步）参考。
+- `examples/`：4 个示例 page.py（大数字加时间线 stat_timeline、纯文字章节分隔页、How-it-works 标签页、插画流程页），另附虚构品牌的演示模版 `demo-template.pptx`，可以直接拿来试跑。写 page.py 时（§3 第 3 步）参考。
 - `examples/illustrated_flow_io.md`：一组完整的"输入 → 输出"对照，包括原图文字清单、讲稿、page.py 和页面文字核对。第一次用本 skill，或拿不准哪些字能上页面时读。
 - `references/page-patterns.md`：各种页型的结构和坐标。§3 第 2 步定页型时读。
 - `references/lessons.md`：QA 清单和踩过的坑。§3 第 5 步看渲染图时读。

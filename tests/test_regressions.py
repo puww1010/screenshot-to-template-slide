@@ -94,5 +94,19 @@ check('non-system font -> NOTE', code == 0 and '[NOTE]' in log and 'Figtree' in 
 code, log, _ = build(T10, ok, '--font', 'Arial')
 check('Arial -> no font NOTE', '[NOTE] font' not in log, log[-300:])
 
+# 6. Section dividers are text only: the shipped example has no illustration shapes, and a page that puts an
+#    illustration card on a section/divider layout gets a WARN (other layouts don't).
+DEMO = os.path.join(ROOT, 'examples', 'demo-template.pptx')
+code, log, out = build(DEMO, os.path.join(ROOT, 'examples', 'section_divider.py'), '--layout', 'ACME Section Divider')
+names = re.findall(r'<p:cNvPr [^>]*name="([^"]*)"', slide_xml(out)) if code == 0 else []
+check('section_divider example is text only', code == 0 and names and
+      all(n in ('Title', 'Subtitle', 'Progress label') or n.startswith('Progress') for n in names[1:]), str(names))
+check('text-only section divider -> no WARN', code == 0 and '[WARN] section divider' not in log, log[-300:])
+card = page("def build():\n    return [title_ph('Chapter'), stage_card(), icon('bug',5,1.2,.4)]\n", 'card_divider.py')
+code, log, _ = build(T10, card, '--layout', 'Section Header')
+check('illustration on section layout -> WARN', code == 0 and '[WARN] section divider' in log, log[-300:])
+code, log, _ = build(T10, card)
+check('illustration on content layout -> no section WARN', code == 0 and '[WARN] section divider' not in log, log[-300:])
+
 print(f'\n{len(FAILS)} failed' if FAILS else '\nall passed')
 sys.exit(1 if FAILS else 0)

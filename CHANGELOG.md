@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.2.3 — 2026-11-15
+章节分隔页改为纯文字。用户反馈，章节页上的白色插图卡片"非常难看"。
+- **规则**：章节分隔页只放标题、副标题和进度条（"0N / 0M"），不画插图、不放插图卡片，原图里有插画也不画，背景交给模版的 Section Divider 版式；只有用户明确要求时才加插图。"图文并茂"这条规则也相应改成不适用于章节页。SKILL.md §2.4、page-patterns.md §6、lessons.md、template-preset-example.md 同步更新。
+- **检查**：`build_slide.py` 发现页面用的是 section/divider 版式、却出现了插图类形状、图片或组合时，给出 `[WARN] section divider`。
+- **示例**：`examples/section_divider.py` 改为纯文字版本。
+- **slidekit**：`progress_meter` 新增 `scale` 参数，在 20×11.25 这类非 10 英寸画布上可以把进度条和标签一起放大（例如 `scale=2`）。
+- `tests/test_regressions.py` 新增 4 项（共 20 项）：示例是纯文字、纯文字章节页不触发提示、章节版式上放插图会触发提示、内容版式上放插图不触发。
+
 ## v1.2.2 — 2026-10-26
 在 PowerPoint 里发现一个 LibreOffice 渲染图上看不出的问题（一个中文 deck 的两页文字叠成一行，像重影），顺着它补齐了渲染差异相关的检查。
 - **修复**：`slidekit.para(lnpct=…)` 原来把数值原样写进 `<a:spcPct val>`，但这个单位是千分之一个百分点，传 120 就成了 0.12% 行距，PowerPoint 会把所有行叠在一起。现在按百分比传参（120 = 120%），原来的写法（120000）照样可用，超出 50–300% 直接报错。
