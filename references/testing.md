@@ -23,7 +23,7 @@ for T in "$SK/examples/demo-template.pptx" "$OUT/blank.pptx"; do
 done
 ```
 
-在空白模版上，section_divider 没有对应的版式。它的标题、副标题和进度条是白字，在白底上看不见，这是正常现象，只要插图卡片画出来就算通过。
+在空白模版上，section_divider 没有对应的版式。它是纯文字页，标题、副标题和进度条都是白字，在白底上看不见，这是正常现象；`[text on slide]` 里能看到标题和副标题就算通过。
 
 **通过标准**（8 次构建都要满足）：
 - `exit=0`，输出里没有 `[FAIL]`。
