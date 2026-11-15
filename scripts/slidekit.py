@@ -451,13 +451,13 @@ def tabs(labels, active, y=1.12, x0=.5, total_w=9.0, h=.3, gap=.12, sz=10):
 def chevron(cx,cy,w=.12,h=.16,c='accent1'):
     return shape('Flow chevron',cx-w/2,cy-h/2,w,h,'chevron',fill=sf(c),av={'adj':50000})
 
-def progress_meter(n_done,total,cx=5.0,y=4.15,on_color='lt1',label=True):
-    """Agenda/section progress meter (pills + '0N / 0M')."""
-    pw,g=.5,.08; tw=total*pw+(total-1)*g; x0=cx-tw/2; S=[]
+def progress_meter(n_done,total,cx=5.0,y=4.15,on_color='lt1',label=True,scale=1.0):
+    """Agenda/section progress meter (pills + '0N / 0M'). scale: size factor for non-10-inch canvases (2.0 on 20 x 11.25)."""
+    k=scale; pw,g=.5*k,.08*k; tw=total*pw+(total-1)*g; x0=cx-tw/2; S=[]
     for j in range(total):
         a=100000 if j<n_done else 40000
-        S.append(shape(f'Progress {j+1}',x0+j*(pw+g),y,pw,.08,'roundRect',fill=sf(on_color,f'<a:alpha val="{a}"/>'),av={'adj':50000}))
-    if label: S.append(text('Progress label',cx-1,y+.16,2,.22,[para([run(f'{n_done:02d} / {total:02d}',10,on_color,b=True,spc=100)],algn='ctr')]))
+        S.append(shape(f'Progress {j+1}',x0+j*(pw+g),y,pw,.08*k,'roundRect',fill=sf(on_color,f'<a:alpha val="{a}"/>'),av={'adj':50000}))
+    if label: S.append(text('Progress label',cx-1*k,y+.16*k,2*k,.22*k,[para([run(f'{n_done:02d} / {total:02d}',10*k,on_color,b=True,spc=100)],algn='ctr')]))
     return S
 
 def stage_card(x=1.5,y=.5,w=7.0,h=1.55,fill='lt1'):
