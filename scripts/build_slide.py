@@ -238,6 +238,29 @@ def font_notes(*fonts):
                     f'or embed fonts when saving in PowerPoint')
 
 
+SECTION_RE = re.compile('section|divider|' + chr(0x7ae0) + chr(0x8282), re.I)  # chr(...) = the Chinese word for 'chapter'
+
+
+def section_divider_check(u, slide_path):
+    """Section-divider pages are text only (title + subtitle + progress meter). Warn when a page built on a
+    section/divider layout carries illustration shapes, pictures or groups."""
+    rels = read(slide_path.replace('slides/', 'slides/_rels/') + '.rels')
+    m = re.search(r'slideLayouts/(slideLayout\d+\.xml)', rels)
+    if not m: return
+    lx = read(os.path.join(u, 'ppt/slideLayouts', m.group(1)))
+    name = ' '.join(re.findall(r'(?:matchingName|<p:cSld name)="([^"]*)"', lx))
+    if not SECTION_RE.search(name): return
+    x = read(slide_path)
+    extra = len(re.findall(r'<p:pic>', x)) + len(re.findall(r'<p:grpSp>', x))
+    for sp in re.findall(r'<p:sp>.*?</p:sp>', x, re.S):
+        nm = (re.search(r'<p:cNvPr [^>]*name="([^"]*)"', sp) or [None, ''])[1]
+        if '<p:ph' in sp or 'txBox="1"' in sp or nm.startswith('Progress'): continue
+        extra += 1
+    if extra:
+        print(f'[WARN] section divider "{name.split()[0] if name else m.group(1)}": {extra} illustration shape(s) found; '
+              f'section pages should be text only (title + subtitle + progress meter), see SKILL.md 2.4')
+
+
 def zipdir(d, out):
     if os.path.exists(out): os.remove(out)
     subprocess.check_call(['zip', '-qXDr', os.path.abspath(out), '.'], cwd=d)
@@ -293,6 +316,7 @@ def main():
     sk.C.i = 10
     sk.inject(slide, page.build())
     canvas_note(u)
+    section_divider_check(u, slide)
     if a.lang == 'zh': tag_cjk_lang(slide)
     font = detect_title_font(u, slide) if a.font == 'auto' else (None if a.font == 'none' else a.font)
     ea = a.ea_font or ('PingFang SC' if a.lang == 'zh' else None)
