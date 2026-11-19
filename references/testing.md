@@ -55,4 +55,4 @@ python3 tests/test_regressions.py
 | "这个扫描版 PDF 帮我变成可编辑的 pptx" | image-to-editable-ppt（环境里装了的话） |
 | "帮我做一份关于零信任的 10 页 PPT"（没有截图） | 通用的 PPT skill，不是本 skill |
 
-如果前两条没有触发本 skill，或者后三条触发了本 skill，就回去改 description 里的触发词和说明。
+如果前两条没有触发本 skill，或者后三条触发了本 skill，就回去改 description 里的触发词和边界说明。

@@ -2,7 +2,7 @@
 name: screenshot-to-template-slide
 description: 把"原图截图 + 讲稿（描述）+ 可选参考 slide"在用户指定的 PPTX 模版上重建成一页可编辑、图文并茂的幻灯片（原生形状图标、模版配色、不改模版）。前提是同时有原图截图和用户自己的 .pptx 模版。当用户发来幻灯片截图并要求"以某模版为模版 / 套用这个模版 / 不要改动模版格式 logo 颜色 / 参考这个 slide / 用 slide-maker 或 ppt-master 做"时使用；也适用于按这种方式逐页截图重建整套 explainer、培训或售前 deck。没有指定模版、只想把截图或扫描件转成可编辑 PPT 的，用 image-to-editable-ppt；没有原图截图、从零写新 deck 的，不用本 skill。
 metadata:
-  version: "1.2.3"
+  version: "1.3.0"
 ---
 
 # Screenshot → Template Slide
@@ -28,6 +28,27 @@ metadata:
 用户说的 "slide-maker"、"ppt-master" 之类的 skill 并不存在。遇到时直接用本 skill，开头跟用户说一句。
 
 > **运行环境**：需要能执行 shell 和 Python。如果环境里装了 Anthropic 官方的 `pptx` skill，脚本会自动调用它的 validate、soffice、clean；没有装时会改用内置的兜底流程（基础包结构检查，直接调用 LibreOffice 渲染），也能完整跑通。本文提到的工具名以 Claude 桌面版为例，在其他 agent 里请换成对应的能力。
+
+## 0.5 开工前：自检（每个新环境先做一次）
+
+这个 skill 是**一整个文件夹**，不只是这份 SKILL.md。下面的命令、示例和参考资料都随包提供：
+
+| 位置 | 内容 |
+|---|---|
+| `scripts/` | `build_slide.py`（构建 + QA）、`slidekit.py`（形状库）、`merge_deck.py`、`list_layouts.py`、`doctor.py`（自检） |
+| `examples/` | `page_template.py`（新页面的骨架）、4 个示例页、`demo-template.pptx`（演示模版）、`illustrated_flow_io.md`（输入→输出对照） |
+| `references/` | `troubleshooting.md`（每条提示的含义和处理办法）、页型、QA 清单、常用说法、模版预设、测试 |
+
+第一次在某个环境里用，或者换了机器，先跑：
+```bash
+python3 scripts/doctor.py --selftest
+```
+- 显示 `[doctor] READY` 和 `[selftest] OK`，说明能正常构建，后面照常做。
+- 出现 `package file missing`，说明拿到的不是完整的包，比如只复制了 SKILL.md。**停下来**告诉用户：到 GitHub Releases 下载完整的 `.skill` 包重新安装。不要只凭这份文字说明手写 XML 交付。
+- LibreOffice 或 pdftoppm 显示 missing：仍然可以构建，只是少了渲染图。doctor 会打印对应系统的安装命令；用户装不了时，按 `references/troubleshooting.md` 的"降级路径"做，并在交付时说明少做了哪一步。
+- 环境完全不能执行命令：告诉用户这个 skill 需要能执行 shell 和 Python 的环境。
+
+任何一步出现 `[FAIL]`、`[WARN]`、`[NOTE]`，都先到 `references/troubleshooting.md` 里查对应的那一行。
 
 ## 1. 系列开场：只问一次
 
@@ -78,7 +99,7 @@ metadata:
 
 1. **抄文字清单**：把原图上的文字逐条列出来，作为最后核对的基准。格式参考 `examples/illustrated_flow_io.md`。
 2. **定页型和版式**：在 `references/page-patterns.md` 里找最接近的页型；用 `python3 scripts/list_layouts.py T.pptx --grep Section` 查版式名称。
-3. **写 page.py**：`from slidekit import *`，定义 `build()` 返回形状列表，可以参考 `examples/` 里的写法。坐标单位是英寸，画布 10×5.625，内容区大约 y 0.95–5.2（页脚从 5.33 开始）。模版画布是别的尺寸时（例如 20×11.25），构建时会出现 `[WARN] canvas … scale … x2.0`，坐标和字号都要按这个倍数放大；slidekit 函数的默认位置和尺寸也是按 10 英寸画布定的，要显式传参。行距用 `para(..., lnpct=120)` 这种百分比写法。
+3. **写 page.py**：复制 `examples/page_template.py` 作为起点，它已经写好了导入、画布缩放系数 K 和一张卡片的示例。`from slidekit import *`，定义 `build()` 返回形状列表，其他写法参考 `examples/` 里的示例页。坐标单位是英寸，画布 10×5.625，内容区大约 y 0.95–5.2（页脚从 5.33 开始）。模版画布是别的尺寸时（例如 20×11.25），构建时会出现 `[WARN] canvas … scale … x2.0`，坐标和字号都要按这个倍数放大；slidekit 函数的默认位置和尺寸也是按 10 英寸画布定的，要显式传参。行距用 `para(..., lnpct=120)` 这种百分比写法。
 4. **构建和 QA**：
    ```bash
    python3 scripts/build_slide.py --template T.pptx --page page.py --out OUT.pptx \
@@ -87,7 +108,7 @@ metadata:
    `--qa-dir` 要用绝对路径，并且放在你查看图片的工具能读到的目录里，例如 Cowork 的 outputs 目录或已挂载的文件夹。有些环境里，看图工具读不到 `/tmp` 或 shell 当前目录下的文件。
    脚本会自动完成：只保留第一页 → 注入形状 → 统一字体 → 用 validate.py 校验（--original 模版）→ 和模版逐文件比对 → 把字号放大 6% 做压力渲染 → 打印页面上的全部文字。
    脚本还会做一遍 XML 检查（lint）：行距、段距、字号超出合理范围时报 `[FAIL] lint` 并退出。这类数值 LibreOffice 会悄悄纠正，渲染图上看不出来，但 PowerPoint 会照原值排版（比如把行距写成 120 而不是 120000，所有行会叠在一起）。
-   出现 `[FAIL]` 要先排查：要么是形状没注入成功，要么是 lint 没通过。`[qa render]` 显示 skipped 说明渲染被跳过了，要补上 LibreOffice，或者手动检查版面。`[NOTE] font …` 说明用到的字体不是 Windows 和 macOS 都自带的，交付时要提醒用户。
+   出现 `[FAIL]` 要先排查，每条 `[FAIL]` 的原因和处理办法都在 `references/troubleshooting.md` 里：比如路径或模版不对、page.py 出错、形状没注入成功、lint 没通过。脚本只打印一行原因，不会抛出 Python 报错堆栈。`[qa render]` 显示 skipped 说明渲染被跳过了，要补上 LibreOffice，或者手动检查版面。`[NOTE] font …` 说明用到的字体不是 Windows 和 macOS 都自带的，交付时要提醒用户。
 5. **看压力渲染图**（用能查看图片的工具打开 jpg），按 `references/lessons.md` 的清单检查：文字溢出、重叠、折行、贴边、图层遮挡、留白不均。改完重跑，直到没有问题。注意渲染图来自 LibreOffice，和 PowerPoint 并不完全一致（见 lessons.md 的"LibreOffice 和 PowerPoint 的差异"），交付时请用户在 PowerPoint 里再过一遍。
 6. **核对文字**：脚本打印出的页面文字要和第 1 步的清单一一对上，不能少，也不能多出讲稿里的句子。
    如果要写演讲者备注，把讲稿原文存成 txt，构建时加 `--notes script.txt`。模版页没有备注页时，脚本会提示跳过。
@@ -116,15 +137,18 @@ python3 scripts/merge_deck.py --out <系列>_Full_Deck.pptx cover.pptx agenda.pp
 
 ## 6. 文件索引
 - `scripts/slidekit.py`：原生 OOXML 形状库，包括文本、路径、组合、26 种图标、20 多个插画部件（服务器、保险库、盾牌、齿轮、机器人部件、火箭、大门、沙盒等），以及页面辅助函数（`title_ph`、`tabs`、`chevron`、`progress_meter`、`stage_card`、`shadow`、`hl_run`）。
-- `scripts/build_slide.py`：一条命令完成构建和 QA。
+- `scripts/build_slide.py`：一条命令完成构建和 QA。只依赖 Python 标准库，打包不需要 `zip` 命令；LibreOffice、pdftoppm、markitdown 都是可选的。
+- `scripts/doctor.py`：开工前自检（§0.5）：检查包是否完整、Python 版本和可选工具，`--selftest` 会真实构建一页演示幻灯片。
 - `scripts/list_layouts.py`：列出模版里的版式和占位符位置。
 - `scripts/merge_deck.py`：把单页文件按顺序合并成整套 deck。
 - build_slide.py 的选项：`--notes`（讲稿写进备注）、`--lang zh` / `--ea-font`（中文页面）。
+- `examples/page_template.py`：新页面的骨架，写 page.py 时从它开始复制。
 - `examples/`：4 个示例 page.py（大数字加时间线 stat_timeline、纯文字章节分隔页、How-it-works 标签页、插画流程页），另附虚构品牌的演示模版 `demo-template.pptx`，可以直接拿来试跑。写 page.py 时（§3 第 3 步）参考。
 - `examples/illustrated_flow_io.md`：一组完整的"输入 → 输出"对照，包括原图文字清单、讲稿、page.py 和页面文字核对。第一次用本 skill，或拿不准哪些字能上页面时读。
 - `references/page-patterns.md`：各种页型的结构和坐标。§3 第 2 步定页型时读。
 - `references/lessons.md`：QA 清单和踩过的坑。§3 第 5 步看渲染图时读。
 - `references/prompt-patterns.md`：用户常用说法 → 对应规则章节。听不懂用户的说法时读（§4）。
 - `references/template-preset-example.md`：怎样给一个新模版写预设（配色、版式编号、系列惯例），附填写模板。要给新模版写预设，或已有预设要读时用（§1）。
+- `references/troubleshooting.md`：脚本每条 `[FAIL]` / `[WARN]` / `[NOTE]` 的原因和处理办法，以及缺少工具时的降级路径。出现任何提示时读。
 - `references/testing.md`：冒烟测试、回归测试和触发测试。修改了 `scripts/` 或 `examples/` 之后、发布新版之前读，并跑一遍。
 - `tests/test_regressions.py`：回归测试，每个踩过的坑一项（`python3 tests/test_regressions.py`）。
