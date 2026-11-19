@@ -1,5 +1,15 @@
 # Changelog
 
+## v1.3.0 — 2026-11-19
+针对一次 RACE 评估里得分偏低的三项（可靠性 3.0、规范性 3.9、有效性 3.9）。评估的意见是"制作与检查工具没有随包提供""异常场景没有兜底""配套示例、常见问题资料没有打包""拿到后需要先补齐依赖"。
+- **可靠性**
+  - 新增 `scripts/doctor.py`：检查包是否完整（只拷了 SKILL.md 时会明确报错，并给出下载完整包的地址）、Python 版本和可选工具，缺什么就打印对应系统的安装命令；`--selftest` 会在演示模版上真实构建一页。
+  - 去掉对 `zip` 命令的依赖：`build_slide.py` 和 `merge_deck.py` 改用 Python 标准库打包，`[Content_Types].xml` 排在第一个、不写目录条目；没有 `fc-list` 时也不再报错。
+  - 常见的用户错误都给出一行 `[FAIL]` 原因，不再抛出 Python 报错堆栈：模版或 page.py 路径不对、模版不是 .pptx 或没有幻灯片、page.py 加载失败、缺少 `build()`、`build()` 运行出错（带行号）、返回值类型不对、`--layout` 名字写错（会列出可用版式）。
+- **规范性**：新增 `references/troubleshooting.md`，列出每条 `[FAIL]` / `[WARN]` / `[NOTE]` 的原因和处理办法，以及缺少 LibreOffice 或不能执行命令时的降级路径。新增 `examples/page_template.py` 作为新页面的骨架，内含画布缩放系数 K。
+- **有效性**：SKILL.md 新增 §0.5「开工前：自检」，包括随包文件清单、doctor 的用法、包不完整时怎么办；README 的"快速开始"第一步改为跑 doctor，依赖说明更新为只需 Python 3.8+。
+- `tests/test_regressions.py` 新增 8 项（共 28 项）：没有 zip/fc-list 也能构建、纯 Python 打包的条目顺序、page.py 没有 build() 或模版无效时给出 `[FAIL]` 而不是报错堆栈、`--layout` 写错时列出可用版式、doctor --selftest 通过、doctor 能发现缺失文件。
+
 ## v1.2.3 — 2026-11-15
 章节分隔页改为纯文字。用户反馈，章节页上的白色插图卡片"非常难看"。
 - **规则**：章节分隔页只放标题、副标题和进度条（"0N / 0M"），不画插图、不放插图卡片，原图里有插画也不画，背景交给模版的 Section Divider 版式；只有用户明确要求时才加插图。"图文并茂"这条规则也相应改成不适用于章节页。SKILL.md §2.4、page-patterns.md §6、lessons.md、template-preset-example.md 同步更新。

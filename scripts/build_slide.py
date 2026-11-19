@@ -31,6 +31,11 @@ def find_pptx_skill(explicit):
     return None
 
 
+def fail(msg):
+    """Stop with one readable line (no traceback). See references/troubleshooting.md for every [FAIL] message."""
+    sys.exit(f'[FAIL] {msg}')
+
+
 def read(p): return open(p, encoding='utf-8').read()
 def write(p, s): open(p, 'w', encoding='utf-8').write(s)
 
@@ -139,7 +144,11 @@ def resolve_layout(u, want):
         x = read(f)
         mn = re.search(r'matchingName="([^"]*)"', x); cn = re.search(r'<p:cSld name="([^"]*)"', x)
         if (mn and mn.group(1) == want) or (cn and cn.group(1) == want): return os.path.basename(f)
-    sys.exit(f'layout "{want}" not found; run list_layouts.py on the template')
+    names = []
+    for f in sorted(glob.glob(os.path.join(u, 'ppt/slideLayouts/slideLayout*.xml'))):
+        m = re.search(r'matchingName="([^"]*)"', read(f)) or re.search(r'<p:cSld name="([^"]*)"', read(f))
+        if m and m.group(1): names.append(m.group(1))
+    fail(f'layout "{want}" not found in the template. Available layouts:\n  ' + '\n  '.join(names))
 
 
 def detect_title_font(u, slide_path):
@@ -262,12 +271,22 @@ def section_divider_check(u, slide_path):
 
 
 def zipdir(d, out):
+    """Pack an unpacked .pptx with the Python standard library (no `zip` binary needed): [Content_Types].xml first,
+    file entries only (no directory entries), deflate. Entry order is otherwise sorted, so builds are reproducible."""
     if os.path.exists(out): os.remove(out)
-    subprocess.check_call(['zip', '-qXDr', os.path.abspath(out), '.'], cwd=d)
+    names = []
+    for root, _, files in os.walk(d):
+        for f in files:
+            names.append(os.path.relpath(os.path.join(root, f), d).replace(os.sep, '/'))
+    names.sort(key=lambda n: (n != '[Content_Types].xml', n))
+    with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
+        for n in names:
+            z.write(os.path.join(d, n), n)
 
 
 def ensure_font_alias(font, ea=None):
     """For QA rendering only: map missing fonts to metric-similar ones so overflow checks are meaningful."""
+    if not shutil.which('fc-list'): return  # no fontconfig: render with whatever LibreOffice substitutes
     have = subprocess.run(['fc-list', ':family'], capture_output=True, text=True).stdout
     al = ''
     if font and font not in have: al += f'<alias binding="same"><family>{font}</family><prefer><family>Liberation Sans</family></prefer></alias>'
@@ -302,7 +321,14 @@ def main():
     ap.add_argument('--lang', default='en'); ap.add_argument('--ea-font', default=None)
     a = ap.parse_args()
     work = tempfile.mkdtemp(prefix='sts_'); u = os.path.join(work, 'u')
-    zipfile.ZipFile(a.template).extractall(u)
+    for f, what in ((a.template, '--template'), (a.page, '--page')):
+        if not os.path.isfile(f): fail(f'{what} file not found: {f}')
+    try:
+        zipfile.ZipFile(a.template).extractall(u)
+    except zipfile.BadZipFile:
+        fail(f'--template is not a .pptx file (not a zip package): {a.template}')
+    if not os.path.exists(os.path.join(u, 'ppt/presentation.xml')) or not re.search(r'<p:sldId ', read(os.path.join(u, 'ppt/presentation.xml'))):
+        fail(f'--template has no slides; open it in PowerPoint, add one slide and save it again: {a.template}')
     skill = find_pptx_skill(a.pptx_skill)
     if keep_first_slide(u):
         prune_unlisted_slides(u)
@@ -312,9 +338,24 @@ def main():
         lay = resolve_layout(u, a.layout); rp = slide.replace('slides/', 'slides/_rels/') + '.rels'
         write(rp, re.sub(r'slideLayouts/slideLayout\d+\.xml', 'slideLayouts/' + lay, read(rp)))
     spec = importlib.util.spec_from_file_location('page', a.page); page = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(page)
+    try:
+        spec.loader.exec_module(page)
+    except Exception as e:
+        fail(f'--page {a.page} could not be loaded: {type(e).__name__}: {e}')
+    if not callable(getattr(page, 'build', None)):
+        fail(f'--page {a.page} must define build() returning a list of shape XML strings (copy examples/page_template.py)')
     sk.C.i = 10
-    sk.inject(slide, page.build())
+    try:
+        shapes = page.build()
+    except Exception as e:
+        import traceback; tb = traceback.extract_tb(e.__traceback__)[-1]
+        fail(f'build() in {a.page} raised {type(e).__name__}: {e}  (line {tb.lineno}: {tb.line})')
+    if not isinstance(shapes, (list, tuple)) or not all(isinstance(s, str) for s in shapes):
+        fail(f'build() in {a.page} must return a list of strings (slidekit shapes), got {type(shapes).__name__}')
+    try:
+        sk.inject(slide, list(shapes))
+    except RuntimeError as e:
+        fail(f'{e} -- the template slide has no <p:spTree>; open the template in PowerPoint and save it again')
     canvas_note(u)
     section_divider_check(u, slide)
     if a.lang == 'zh': tag_cjk_lang(slide)

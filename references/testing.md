@@ -1,5 +1,7 @@
 # 测试：改了 skill 之后先跑这几项
 
+最快的一步检查是 `python3 scripts/doctor.py --selftest`，它会检查包是否完整，并真实构建一页演示幻灯片。下面三项是改了代码之后要跑的完整测试。
+
 ## 1. 冒烟测试（脚本）
 
 修改 `scripts/` 或 `examples/` 之后跑。会用两个模版各跑一遍 4 个 example，因为两个模版里 `<p:grpSpPr>` 的写法不同，两种情况都要覆盖：
@@ -39,7 +41,7 @@ done
 ```bash
 python3 tests/test_regressions.py
 ```
-覆盖已经踩过的坑：行距单位（lnpct=120 → 120000）、lint 拦截 PowerPoint 会照原值排版的异常值、`--lang zh` 给中文文字标 zh-CN、非 10 英寸画布的提示、非系统字体的提示。需要 python-pptx，用来临时生成模版。最后一行显示 `all passed` 才算通过。修 bug 时先在这里加一个能复现问题的测试，再改代码。
+覆盖已经踩过的坑：行距单位（lnpct=120 → 120000）、lint 拦截 PowerPoint 会照原值排版的异常值、`--lang zh` 给中文文字标 zh-CN、非 10 英寸画布的提示、非系统字体的提示、章节页只用文字、没有 `zip`/`fc-list` 也能构建、page.py 或模版出错时给出可读的 `[FAIL]`、doctor 能发现缺失文件且 selftest 通过。需要 python-pptx，用来临时生成模版。最后一行显示 `all passed` 才算通过。修 bug 时先在这里加一个能复现问题的测试，再改代码。
 
 ## 3. 触发测试（description）
 

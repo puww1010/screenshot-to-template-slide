@@ -26,7 +26,7 @@
 - **Claude 桌面版 / Cowork**：到 [Releases](https://github.com/puww1010/screenshot-to-template-slide/releases/latest) 下载 `screenshot-to-template-slide.skill`，在对话里打开后点 **Save skill**。
 - **Claude Code**：把仓库复制到 `~/.claude/skills/screenshot-to-template-slide/`。
 
-依赖：Python 3、`zip`；QA 渲染需要 LibreOffice 和 `pdftoppm`；`markitdown` 可选（没有时脚本自己提取页面文字）。Anthropic 官方 `pptx` skill 是**可选**的：装了就用它的 validate、soffice、clean，没装就走内置兜底流程。
+依赖：只需要 Python 3.8+（打包用标准库，不需要 `zip` 命令）；QA 渲染需要 LibreOffice 和 `pdftoppm`；`markitdown` 可选（没有时脚本自己提取页面文字）。Anthropic 官方 `pptx` skill 是**可选**的：装了就用它的 validate、soffice、clean，没装就走内置兜底流程。
 
 ## 在其他 AI Agent 中使用
 本 skill 遵循 Agent Skills 的目录约定：一个文件夹，里面有带 `name`/`description` 头信息的 `SKILL.md`，再配上 `scripts/`、`references/` 和 `examples/`。
@@ -44,6 +44,12 @@
 Rebuild a slide **screenshot + speaker script** into an **editable, template-faithful PPTX slide** with native shapes (no images), theme colours and zero template modification. Ships `slidekit` (26 icons, 20+ illustration parts), a one-command build/QA pipeline (font unification, package validation, template diff, +6% stress render, text audit), a deck merger, speaker-notes injection and a Chinese mode. Works with any agent that can run shell + Python; Anthropic's `pptx` skill is optional.
 
 ## 快速开始
+先自检，确认包完整、环境能用（会真实构建一页演示幻灯片）：
+```bash
+python3 scripts/doctor.py --selftest
+```
+缺少的可选工具，doctor 会打印对应系统的安装命令；每条提示的含义见 `references/troubleshooting.md`。
+
 没有现成的模版也可以先用演示模版试跑：
 ```bash
 python3 scripts/build_slide.py --template examples/demo-template.pptx --page examples/stat_timeline.py --out demo.pptx --qa-dir qa/
@@ -64,9 +70,10 @@ scripts/slidekit.py           原生形状与图标库
 scripts/build_slide.py        单页构建与 QA
 scripts/merge_deck.py         合并整套 deck
 scripts/list_layouts.py       列出模版版式
-examples/                     4 个示例页 + 演示模版 demo-template.pptx（虚构品牌 ACME）+ 输入输出对照 illustrated_flow_io.md
+scripts/doctor.py             开工前自检（--selftest 构建一页演示幻灯片）
+examples/                     page_template.py 新页面骨架 + 4 个示例页 + 演示模版 demo-template.pptx（虚构品牌 ACME）+ 输入输出对照 illustrated_flow_io.md
 docs/images/                  README 里的效果示例图
-references/                   页型结构、QA 清单、常用说法对照、模版预设示例、测试清单 testing.md
+references/                   排错手册 troubleshooting.md、页型结构、QA 清单、常用说法对照、模版预设示例、测试清单 testing.md
 tests/test_regressions.py     回归测试（行距单位、lint、中文标注、画布尺寸、字体提示）
 ```
 
