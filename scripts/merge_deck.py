@@ -72,8 +72,9 @@ def main():
         pres = pres.replace('</p:sldIdLst>', f'<p:sldId id="{max_id}" r:id="rId{max_rid}"/></p:sldIdLst>')
         print(f'+ {os.path.basename(f)} -> {new_slide}')
     wr(f'{base}/[Content_Types].xml', ct); wr(f'{base}/ppt/presentation.xml', pres); wr(f'{base}/ppt/_rels/presentation.xml.rels', prels)
-    if os.path.exists(a.out): os.remove(a.out)
-    subprocess.check_call(['zip', '-qXDr', os.path.abspath(a.out), '.'], cwd=base)
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from build_slide import zipdir  # pure-Python packing, no `zip` binary needed
+    zipdir(base, a.out)
     print('[merged]', a.out, len(a.files), 'slides')
 
 if __name__ == '__main__':

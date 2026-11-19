@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regression tests for problems found in real use. Run:  python3 tests/test_regressions.py
 Needs python-pptx (only to generate throw-away templates) and the same tools build_slide.py needs."""
-import os, re, subprocess, sys, tempfile, zipfile
+import os, re, shutil, subprocess, sys, tempfile, zipfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPTS = os.path.join(ROOT, 'scripts'); sys.path.insert(0, SCRIPTS)
 import slidekit as sk  # noqa: E402
@@ -107,6 +107,38 @@ code, log, _ = build(T10, card, '--layout', 'Section Header')
 check('illustration on section layout -> WARN', code == 0 and '[WARN] section divider' in log, log[-300:])
 code, log, _ = build(T10, card)
 check('illustration on content layout -> no section WARN', code == 0 and '[WARN] section divider' not in log, log[-300:])
+
+# 7. Reliability: the build must not depend on the `zip` / `fc-list` binaries, and user mistakes (a page.py without
+#    build(), a template that is not a .pptx) must end with a readable [FAIL] line instead of a Python traceback.
+NOBIN = os.path.join(TMP, 'nobin'); os.makedirs(NOBIN, exist_ok=True)
+for tool in ('python3', 'soffice', 'libreoffice', 'pdftoppm'):
+    w = shutil.which(tool)
+    if w and not os.path.exists(os.path.join(NOBIN, tool)): os.symlink(w, os.path.join(NOBIN, tool))
+env = dict(os.environ, PATH=NOBIN)
+r = subprocess.run([sys.executable, os.path.join(SCRIPTS, 'build_slide.py'), '--template', T10, '--page', ok, '--out',
+                    os.path.join(TMP, 'nozip.pptx'), '--pptx-skill', 'none', '--qa-dir', os.path.join(TMP, 'qa_nozip')],
+                   capture_output=True, text=True, env=env)
+check('build works without zip / fc-list on PATH', r.returncode == 0 and '[lint] OK' in r.stdout, (r.stdout + r.stderr)[-400:])
+if r.returncode == 0:
+    zn = zipfile.ZipFile(os.path.join(TMP, 'nozip.pptx')).namelist()
+    check('pure-Python zip: [Content_Types].xml first, no directory entries', zn[0] == '[Content_Types].xml' and not any(n.endswith('/') for n in zn), str(zn[:3]))
+nobuild = page("x = 1\n", 'nobuild.py')
+code, log, _ = build(T10, nobuild)
+check('page.py without build() -> [FAIL], no traceback', code != 0 and '[FAIL]' in log and 'Traceback' not in log, log[-300:])
+bad_tpl = os.path.join(TMP, 'not_a_template.pptx'); open(bad_tpl, 'w').write('hello')
+code, log, _ = build(bad_tpl, ok)
+check('invalid template -> [FAIL], no traceback', code != 0 and '[FAIL]' in log and 'Traceback' not in log, log[-300:])
+code, log, _ = build(T10, ok, '--layout', 'No Such Layout')
+check('unknown --layout -> [FAIL] listing layouts', code != 0 and '[FAIL]' in log and 'Title Only' in log, log[-300:])
+
+# 8. doctor.py: reports a missing package file, and --selftest builds a demo slide end to end.
+DOC = os.path.join(SCRIPTS, 'doctor.py')
+r = subprocess.run([sys.executable, DOC, '--selftest'], capture_output=True, text=True)
+check('doctor --selftest passes on a complete package', r.returncode == 0 and '[selftest] OK' in r.stdout, (r.stdout + r.stderr)[-400:])
+cp = os.path.join(TMP, 'pkg'); shutil.rmtree(cp, True); shutil.copytree(ROOT, cp, ignore=shutil.ignore_patterns('.git', '__pycache__'))
+os.remove(os.path.join(cp, 'references', 'lessons.md'))
+r = subprocess.run([sys.executable, os.path.join(cp, 'scripts', 'doctor.py')], capture_output=True, text=True)
+check('doctor flags a missing package file', r.returncode != 0 and 'references/lessons.md' in r.stdout, (r.stdout + r.stderr)[-400:])
 
 print(f'\n{len(FAILS)} failed' if FAILS else '\nall passed')
 sys.exit(1 if FAILS else 0)
